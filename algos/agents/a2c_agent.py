@@ -45,6 +45,8 @@ class A2CAgent():
         self.entropies = []
 
         self.t_step = 0
+        
+        self.activation = {}
 
     def step(self, state, log_prob, entropy, reward, done, next_state):
 
@@ -117,3 +119,34 @@ class A2CAgent():
             R = self.rewards[step] + gamma * R * self.masks[step]
             returns.insert(0, R)
         return returns
+    
+    
+    def getActivation(self, name):
+        def hook(model, input, output):
+            self.activation[name] = output.detach()
+        return hook
+            
+    
+    def registration(self):
+        
+        self.h1 = self.actor_net.conv_1.register_forward_hook(self.getActivation('Conv_1'))
+        self.h2 = self.actor_net.conv_2.register_forward_hook(self.getActivation('Conv_2'))
+        self.h3 = self.actor_net.conv_3.register_forward_hook(self.getActivation('Conv_3'))
+        self.h4 = self.actor_net.fc1.register_forward_hook(self.getActivation('fc1'))
+        
+        
+        self.h5 = self.critic_net.conv_1.register_forward_hook(self.getActivation('Conv_1'))
+        self.h6 = self.critic_net.conv_2.register_forward_hook(self.getActivation('Conv_2'))
+        self.h7 = self.critic_net.conv_3.register_forward_hook(self.getActivation('Conv_3'))
+        self.h8 = self.critic_net.fc1.register_forward_hook(self.getActivation('fc1'))
+        
+    def detach(self):
+        self.h1.remove()
+        self.h2.remove()
+        self.h3.remove()
+        self.h4.remove()
+        
+        self.h5.remove()
+        self.h6.remove()
+        self.h7.remove()
+        self.h8.remove()

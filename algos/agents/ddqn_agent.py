@@ -47,6 +47,8 @@ class DDQNAgent():
         
         self.t_step = 0
 
+        self.activation = {}
+
     
     def step(self, state, action, reward, next_state, done):
         # Save experience in replay memory
@@ -104,3 +106,27 @@ class DDQNAgent():
     def soft_update(self, policy_model, target_model, tau):
         for target_param, policy_param in zip(target_model.parameters(), policy_model.parameters()):
             target_param.data.copy_(tau*policy_param.data + (1.0-tau)*target_param.data)
+
+
+
+                
+    def getActivation(self, name):
+        def hook(model, input, output):
+            self.activation[name] = output.detach()
+        return hook
+            
+    
+    def registration(self):
+        self.h1 = self.policy_net.conv_1.register_forward_hook(self.getActivation('Conv_1'))
+        self.h2 = self.policy_net.conv_2.register_forward_hook(self.getActivation('Conv_2'))
+        self.h3 = self.policy_net.conv_3.register_forward_hook(self.getActivation('Conv_3'))
+        self.h4 = self.policy_net.advantage.register_forward_hook(self.getActivation('advantage'))
+        self.h5 = self.policy_net.value.register_forward_hook(self.getActivation('value '))
+
+        
+    def detach(self):
+        self.h1.remove()
+        self.h2.remove()
+        self.h3.remove()
+        self.h4.remove()
+        self.h5.remove()

@@ -42,10 +42,17 @@ class DQNAgent():
         self.target_net = self.DQN(input_shape, action_size).to(self.device)
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=self.lr)
         
+
+
         # Replay memory
         self.memory = ReplayBuffer(self.buffer_size, self.batch_size, self.seed, self.device)
         
         self.t_step = 0
+        
+        #Activation
+        #self.activation_fc1 = []
+        #self.activation_conv = []
+        self.activation = {}
 
     
     def step(self, state, action, reward, next_state, done):
@@ -54,7 +61,6 @@ class DQNAgent():
         
         # Learn every UPDATE_EVERY time steps.
         self.t_step = (self.t_step + 1) % self.update_every
-
         if self.t_step == 0:
             # If enough samples are available in memory, get random subset and learn
             if len(self.memory) > self.replay_after:
@@ -82,16 +88,18 @@ class DQNAgent():
         # Get expected Q values from policy model
         Q_expected_current = self.policy_net(states)
         Q_expected = Q_expected_current.gather(1, actions.unsqueeze(1)).squeeze(1)
-
+        
         # Get max predicted Q values (for next states) from target model
-        Q_targets_next = self.target_net(next_states).detach().max(1)[0]
+        Q_targets_next = self.target_net(next_states)
+        
+        Q_targets_next = Q_targets_next.detach().max(1)[0]
         
         # Compute Q targets for current states 
         Q_targets = rewards + (self.gamma * Q_targets_next * (1 - dones))
         
         # Compute loss
         loss = F.mse_loss(Q_expected, Q_targets)
-
+        
         # Minimize the loss
         self.optimizer.zero_grad()
         loss.backward()
@@ -99,8 +107,30 @@ class DQNAgent():
 
         self.soft_update(self.policy_net, self.target_net, self.tau)
 
+
     
     # θ'=θ×τ+θ'×(1−τ)
     def soft_update(self, policy_model, target_model, tau):
         for target_param, policy_param in zip(target_model.parameters(), policy_model.parameters()):
             target_param.data.copy_(tau*policy_param.data + (1.0-tau)*target_param.data)
+            
+            
+    def getActivation(self,name):
+        def hook(model, input, output):
+            self.activation[name] = output.detach()
+        return hook
+            
+    
+    def registration(self):
+        self.h1 = self.policy_net.fc1.register_forward_hook(self.getActivation('fc1'))
+        self.h2 = self.policy_net.conv_1.register_forward_hook(self.getActivation('Conv_1'))
+        self.h3 = self.policy_net.conv_2.register_forward_hook(self.getActivation('Conv_2'))
+        self.h4 = self.policy_net.conv_3.register_forward_hook(self.getActivation('Conv_3'))
+        
+    def detach(self):
+        self.h1.remove()
+        self.h2.remove()
+        self.h3.remove()
+        self.h4.remove()
+
+
